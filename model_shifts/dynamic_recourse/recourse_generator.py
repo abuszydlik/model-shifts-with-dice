@@ -123,7 +123,6 @@ class RecourseGenerator():
             counterfactual = recourse_controller(recourse_worker, self.timeout, self.generator, f)
             # We only want to overwrite the existing data if counterfactual generation was successful
             if counterfactual is not None and not counterfactual.empty:
-                # self.dataset._df.iloc[f.index[0]] = counterfactual.iloc[0]
                 counterfactual.rename(index={0: f.index[0]}, inplace=True)
                 self.dataset._df.update(counterfactual)
                 if found_counterfactuals is None:

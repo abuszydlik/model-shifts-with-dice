@@ -100,12 +100,26 @@ class RecourseExperiment():
         # Measure the quality of recourse
         self.experiment_data['evaluation'] = {}
         for g in self.generators:
-            log.info(self.benchmarks[g.name].compute_ynn())
-            log.info(self.benchmarks[g.name].compute_distances())
-            log.info(self.benchmarks[g.name].compute_constraint_violation())
-            log.info(self.benchmarks[g.name].compute_redundancy())
-            success_rate = g.num_found / max(len(self.factuals.index) - len(self.factuals_index), 1)
-            self.experiment_data['evaluation'][g.name] = {'success_rate': success_rate}
+            benchmark = self.benchmarks[g.name]
+            found_counterfactuals = benchmark._counterfactuals.index
+            # log.info(found_counterfactuals, self.factuals.index)
+
+            benchmark._factuals = benchmark._factuals.loc[found_counterfactuals]
+            success_rate = g.num_found / max(len(self.factuals) - len(self.factuals_index), 1)
+            average_time = benchmark._timer / len(found_counterfactuals)
+            distances = benchmark.compute_distances().mean(axis=0)
+
+            self.experiment_data['evaluation'][g.name] = {
+                'success_rate': success_rate,
+                'avg_time': average_time,
+                'avg_redundancy': benchmark.compute_redundancy().mean(axis=0).iloc[0],
+                'avg_ynn': benchmark.compute_ynn().mean(axis=0).iloc[0],
+                'avg_constraint_violation': benchmark.compute_constraint_violation().mean(axis=0).iloc[0],
+                'avg_changes': distances.iloc[0],
+                'avg_taxicab': distances.iloc[1],
+                'avg_euclidean': np.sqrt(distances.iloc[2]),
+                'avg_max_change': distances.iloc[3]
+            }
 
     def save_data(self, path=None):
         """
