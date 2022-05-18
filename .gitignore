@@ -1,2 +1,5 @@
+.env
 .ipynb_checkpoints
+.vscode
 /experiment_data
+__pycache__
