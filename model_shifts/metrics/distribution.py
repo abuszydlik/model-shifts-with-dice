@@ -66,38 +66,38 @@ def MMD_null_hypothesis(x, y, iterations=10000):
     return mmd_null
 
 
-def current_MMD(data, positive_class, initial_pos):
+def class_MMD(data, target, initial_sample, cls, iterations=1000):
+    cls_individuals = data.loc[data[target] == cls]
+    cls_sample = cls_individuals.sample(n=min(len(cls_individuals), 200)).to_numpy()
+
+    mmd = MMD(initial_sample, cls_sample)
+    mmd_null = MMD_null_hypothesis(initial_sample, cls_sample, iterations)
+    p = max(1 / iterations, np.count_nonzero(mmd_null >= mmd) / iterations)
+
+    return {
+        'value': mmd,
+        'p': p
+    }
+
+
+def test_MMD(dataset, initial_samples):
     """
     Measure the MMD between the initial distribution and the current distribution for both classes.
 
     Args:
         data (pandas.DataFrame):
             Records along with their labels.
-        positive_class (int):
-            Encoding of the positive class in the dataset.
-        initial_pos (numpy.ndarray):
-            A sample of points of the positive class from the initial distribution.
+        initial_samples (dict):
+            A sample of points of both classes from the initial distribution.
 
     Returns:
         dict: A dictionary containing current values of MMD for the positive and the negative class.
     """
-
-    # Find individuals of both classes
-    pos_individuals = data.loc[data['target'] == positive_class]
-
-    # Sample individuals of the positive class, distribution of the negative class does not change over time
-    # TODO this will fail if 100 individuals are not left
-    updated_pos = pos_individuals.sample(n=min(len(pos_individuals), 100)).to_numpy()
-    mmd_pos = MMD(initial_pos, updated_pos)
-
-    iterations = 1000
-    mmd_null = MMD_null_hypothesis(initial_pos, updated_pos, iterations)
-
-    p_pos = max(1 / iterations, np.count_nonzero(mmd_null >= mmd_pos) / iterations)
-
     return {
-        'value': mmd_pos,
-        'p': p_pos
+        'positive': class_MMD(dataset._df, dataset._target, initial_samples['positive'],
+                              dataset._positive, iterations=1000),
+        'negative': class_MMD(dataset._df, dataset._target, initial_samples['negative'],
+                              dataset._negative, iterations=1000)
     }
 
 

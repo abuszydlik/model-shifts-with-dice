@@ -27,7 +27,7 @@ class RecourseExperiment():
         experiment_name (str):
             Name of the experiment that will be used as part of the directory name where results are saved.
     """
-    def __init__(self, dataset, model, generators, experiment_name='experiment', **kwargs):
+    def __init__(self, dataset, model, generators, experiment_name='experiment', test_parameters={}):
         assert len(generators) != 0
 
         # Experiment data is saved into a new directory
@@ -46,10 +46,15 @@ class RecourseExperiment():
         self.factuals_index = self.factuals.index.tolist()
 
         pos_individuals = dataset.df_train.loc[dataset.df_train['target'] == dataset.positive]
-        self.initial_pos_sample = pos_individuals.sample(n=min(len(pos_individuals), 100)).to_numpy()
+        pos_sample = pos_individuals.sample(n=min(len(pos_individuals), 200)).to_numpy()
+
+        neg_individuals = dataset.df_train.loc[dataset.df_train['target'] == dataset.negative]
+        neg_sample = neg_individuals.sample(n=min(len(neg_individuals), 200)).to_numpy()
+
+        self.initial_samples = {'positive': pos_sample, 'negative': neg_sample}
 
         self.experiment_data = {}
-        self.experiment_data['parameters'] = kwargs
+        self.experiment_data['parameters'] = test_parameters
 
         self.benchmarks = {}
         for g in self.generators:
@@ -77,8 +82,8 @@ class RecourseExperiment():
         epochs = max(int(min(total_recourse, 1) * len(self.factuals) / recourse_per_epoch), 1)
 
         for g in self.generators:
-            self.benchmarks[g.name].start(self.experiment_data, path,
-                                          self.initial_model, self.initial_pos_sample)
+            self.benchmarks[g.name].start(self.experiment_data, path, self.initial_model,
+                                          self.initial_samples, self.initial_boundary)
 
         for epoch in range(epochs - 1):
             log.info(f"Starting epoch {epoch + 1}")
@@ -93,7 +98,7 @@ class RecourseExperiment():
                 self.benchmarks[g.name].next_iteration(self.experiment_data, path,
                                                        current_factuals_index,
                                                        self.initial_model,
-                                                       self.initial_pos_sample,
+                                                       self.initial_samples,
                                                        self.initial_boundary,
                                                        self.x_min, self.x_max)
 

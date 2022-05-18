@@ -23,10 +23,11 @@ class DynamicBenchmark(Benchmark):
         if isinstance(mlmodel, MLModelCatalog):
             self._mlmodel.use_pipeline = False
 
-    def start(self, experiment_data, path, initial_model, initial_pos_sample):
+    def start(self, experiment_data, path, initial_model, initial_samples, initial_boundary):
         experiment_data[self._generator.name][0] = measure(self._generator,
                                                            initial_model,
-                                                           initial_pos_sample)
+                                                           initial_samples,
+                                                           initial_boundary)
 
         # Plot initial data distributions
         plot_distribution(self._generator.dataset, self._generator.model, path,
@@ -35,7 +36,7 @@ class DynamicBenchmark(Benchmark):
         self._generator.update_model()
 
     def next_iteration(self, experiment_data, path, current_factuals_index,
-                       initial_model, initial_pos_sample, initial_boundary, x_min, x_max):
+                       initial_model, initial_samples, initial_boundary, x_min, x_max):
         experiment_data[self._generator.name][self._epoch + 1] = {}
 
         # Find relevant factuals
@@ -56,7 +57,7 @@ class DynamicBenchmark(Benchmark):
         # Measure the data distribution and performance of the model
         experiment_data[self._generator.name][self._epoch + 1] = measure(self._generator,
                                                                          initial_model,
-                                                                         initial_pos_sample,
+                                                                         initial_samples,
                                                                          initial_boundary,
                                                                          x_min, x_max)
 
