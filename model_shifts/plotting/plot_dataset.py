@@ -28,14 +28,14 @@ def plot_distribution(data, model, output_directory, generator_name,
     test = data._df_test.to_numpy()
     fig, ax = plt.subplots()
 
-    fig.set_dpi(150)
+    fig.set_dpi(300)
     ax.set_aspect('equal')
     ax.set_xlim([-0.50, 1.50])
     ax.set_ylim([-0.25, 1.25])
     ax.set_xlabel('$feature1$')
     ax.set_ylabel('$feature2$')
 
-    x0, x1, z, _, _ = calculate_boundary(data._df, model)
+    x0, x1, z = calculate_boundary(data._df, model)
     ax.contourf(x0, x1, z, cmap='plasma', levels=10, alpha=0.8)
 
     y = test[:, 2]
@@ -57,15 +57,15 @@ def plot_distribution(data, model, output_directory, generator_name,
     if show_plot:
         plt.show()
 
-    figure.savefig(f"{output_directory}/{generator_name}_{plot_type}_{f'{plot_id:06}'}.png", bbox_inches='tight')
+    figure.savefig(f"{output_directory}/{generator_name}_{plot_type}_{f'{plot_id:06}'}.png",
+                   bbox_inches='tight', dpi=300)
+    plt.close()
 
 
-def calculate_boundary(data, model, resolution=0.01, x_min=None, x_max=None):
+def calculate_boundary(data, model, resolution=0.01):
     data = data.to_numpy()
-    if x_min is None:
-        x_min = np.min(data[:, :], axis=0) - 1
-    if x_max is None:
-        x_max = np.max(data[:, :], axis=0) + 1
+    x_min = np.min(data[:, :], axis=0) - 1
+    x_max = np.max(data[:, :], axis=0) + 1
 
     x0, x1 = np.meshgrid(np.arange(x_min[0], x_max[0], resolution),
                          np.arange(x_min[1], x_max[1], resolution))
@@ -75,4 +75,4 @@ def calculate_boundary(data, model, resolution=0.01, x_min=None, x_max=None):
 
     y_new = model.predict_proba(x_new)[:, 1]
     z = y_new.reshape(x0.shape)
-    return x0, x1, z, x_min, x_max
+    return x0, x1, z

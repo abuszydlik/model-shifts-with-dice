@@ -7,7 +7,6 @@ from carla import log
 from carla.models.negative_instances import predict_negative_instances
 from copy import deepcopy
 from .dynamic_benchmark import DynamicBenchmark
-from ..plotting.plot_dataset import calculate_boundary
 from datetime import datetime
 
 
@@ -36,10 +35,9 @@ class RecourseExperiment():
         os.makedirs(f'../experiment_data/{self.experiment_name}')
         self.initial_dataset = deepcopy(dataset._df)
         self.initial_model = deepcopy(model)
-        _, _, self.initial_boundary, self.x_min, self.x_max = calculate_boundary(self.initial_dataset,
-                                                                                 self.initial_model)
-        self.generators = generators
+        self.initial_proba = model.predict_proba(dataset._df.loc[:, dataset._df.columns != dataset.target])
 
+        self.generators = generators
         # factuals are a list of instances that the model expects to belong to the negative class;
         # in order to acurately measure the performance of the dataset we never change the test set
         self.factuals = predict_negative_instances(model, dataset.df_train)
@@ -83,7 +81,7 @@ class RecourseExperiment():
 
         for g in self.generators:
             self.benchmarks[g.name].start(self.experiment_data, path, self.initial_model,
-                                          self.initial_samples, self.initial_boundary)
+                                          self.initial_samples, self.initial_proba)
 
         for epoch in range(epochs - 1):
             log.info(f"Starting epoch {epoch + 1}")
@@ -99,15 +97,13 @@ class RecourseExperiment():
                                                        current_factuals_index,
                                                        self.initial_model,
                                                        self.initial_samples,
-                                                       self.initial_boundary,
-                                                       self.x_min, self.x_max)
+                                                       self.initial_proba)
 
         # Measure the quality of recourse
         self.experiment_data['evaluation'] = {}
         for g in self.generators:
             benchmark = self.benchmarks[g.name]
             found_counterfactuals = benchmark._counterfactuals.index
-            # log.info(found_counterfactuals, self.factuals.index)
 
             benchmark._factuals = benchmark._factuals.loc[found_counterfactuals]
             success_rate = g.num_found / max(len(self.factuals) - len(self.factuals_index), 1)

@@ -1,7 +1,6 @@
 import numpy as np
 
 
-from ..plotting.plot_dataset import calculate_boundary
 from .distribution import MMD, MMD_null_hypothesis
 
 
@@ -61,7 +60,7 @@ def class_boundary_distance(data, target, model, cls):
     """
     samples = data.loc[data[target] == cls]
     proba = model.predict_proba(samples.loc[:, samples.columns != target])
-    return np.linalg.norm(proba[:, 0] - 0.5) / len(proba)
+    return np.linalg.norm(proba[:, cls] - 0.5) / len(proba)
 
 
 def boundary_distance(dataset, model):
@@ -82,30 +81,27 @@ def boundary_distance(dataset, model):
     }
 
 
-def model_MMD(dataset, model, initial_boundary, x_min=None, x_max=None):
+def model_MMD(dataset, model, initial_proba):
     """Calculates the MMD on the probabilities of classification assigned by the model
-    to a meshgrid of points in the classification space. Allows to quantify the model shift.
+    to the set of (all)  instances. Allows to quantify the model shift.
 
     Args:
         dataset (DataCatalog):
             Catalog containing a dataframe, set of train and test records, and the target.
         model (MLModelCatalog):
             Classifier with additional utilities required by CARLA.
-        initial_boundary (numpy.ndarray):
-            Probabilities assigned by the model to a grid of samples.
-        x_min (numpy.ndarray, optional):
-            Lower bounds of the classification space. Defaults to None.
-        x_max (numpy.ndarray, optional):
-            Higher bounds of the classification space. Defaults to None.
+        initial_proba (numpy.ndarray):
+            Probabilities assigned by the model to a set of samples.
 
     Returns:
         dict: A dictionary with an estimate of current MMD and p-value for that estimate.
     """
-    _, _, z, _, _ = calculate_boundary(dataset._df, model, x_min=x_min, x_max=x_max)
-    mmd = MMD(initial_boundary, z)
+    sample = np.random.randint(2, size=min(len(initial_proba), 10000)).astype('bool')
+    updated_proba = model.predict_proba(dataset._df.loc[:, dataset._df.columns != dataset.target])
+    mmd = MMD(initial_proba[sample], updated_proba[sample])
 
-    iterations = 200
-    mmd_null = MMD_null_hypothesis(initial_boundary, z, iterations)
+    iterations = 1000
+    mmd_null = MMD_null_hypothesis(initial_proba, updated_proba, iterations)
     p = max(1 / iterations, np.count_nonzero(mmd_null >= mmd) / iterations)
 
     return {

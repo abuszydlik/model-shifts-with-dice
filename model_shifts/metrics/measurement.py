@@ -3,7 +3,7 @@ from .distribution import measure_distribution, test_MMD
 from .performance import measure_performance
 
 
-def measure(generator, initial_model, initial_samples, initial_boundary=None, x_min=None, x_max=None):
+def measure(generator, initial_model, initial_samples, initial_proba):
     """
     Quantify the dataset and model and save into `experiment_data`.
 
@@ -29,11 +29,11 @@ def measure(generator, initial_model, initial_samples, initial_boundary=None, x_
     results['boundary_distance'] = boundary_distance(generator.dataset, generator.model)
 
     # Measure the MMD of the distribution and the model
-    if initial_boundary is None:
+    if initial_proba is None:
         results['MMD'] = 0
         results['model_MMD'] = 0
     else:
         results['MMD'] = test_MMD(generator.dataset, initial_samples)
-        results['model_MMD'] = model_MMD(generator.dataset, generator.model, initial_boundary, x_min, x_max)
+        results['model_MMD'] = model_MMD(generator.dataset, generator.model, initial_proba)
 
     return results

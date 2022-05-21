@@ -70,9 +70,12 @@ class RecourseGenerator():
             int: Number of successfully generated counterfactuals.
         """
         if self.timeout is not None:
-            return self.apply_recourse_with_timeout(factuals)
+            counterfactuals = self.apply_recourse_with_timeout(factuals)
         else:
-            return self.apply_recourse(factuals)
+            counterfactuals = self.apply_recourse(factuals)
+
+        self.dataset._df.update(counterfactuals)
+        return counterfactuals
 
     def apply_recourse(self, factuals):
         """
@@ -91,10 +94,7 @@ class RecourseGenerator():
         if factuals is None or len(factuals) == 0:
             return None
 
-        counterfactuals = self.generator.get_counterfactuals(factuals).dropna()
-        self.dataset._df.update(counterfactuals)
-
-        return counterfactuals
+        return self.generator.get_counterfactuals(factuals).dropna()
 
     def apply_recourse_with_timeout(self, factuals):
         """
@@ -123,8 +123,7 @@ class RecourseGenerator():
             counterfactual = recourse_controller(recourse_worker, self.timeout, self.generator, f)
             # We only want to overwrite the existing data if counterfactual generation was successful
             if counterfactual is not None and not counterfactual.empty:
-                counterfactual.rename(index={0: f.index[0]}, inplace=True)
-                self.dataset._df.update(counterfactual)
+                counterfactual.rename(index={counterfactual.index[0]: f.index[0]}, inplace=True)
                 if found_counterfactuals is None:
                     found_counterfactuals = counterfactual
                 else:
