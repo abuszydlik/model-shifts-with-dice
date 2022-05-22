@@ -23,11 +23,13 @@ class DynamicBenchmark(Benchmark):
         if isinstance(mlmodel, MLModelCatalog):
             self._mlmodel.use_pipeline = False
 
-    def start(self, experiment_data, path, initial_model, initial_samples, initial_proba):
+    def start(self, experiment_data, path, initial_model, initial_samples,
+              initial_proba, calculate_p):
         experiment_data[self._generator.name][0] = measure(self._generator,
                                                            initial_model,
                                                            initial_samples,
-                                                           initial_proba)
+                                                           initial_proba,
+                                                           calculate_p)
 
         # Plot initial data distributions
         plot_distribution(self._generator.dataset, self._generator.model, path,
@@ -36,7 +38,7 @@ class DynamicBenchmark(Benchmark):
         self._generator.update_model()
 
     def next_iteration(self, experiment_data, path, current_factuals_index,
-                       initial_model, initial_samples, initial_proba):
+                       initial_model, initial_samples, initial_proba, calculate_p):
         experiment_data[self._generator.name][self._epoch + 1] = {}
 
         # Find relevant factuals
@@ -59,7 +61,8 @@ class DynamicBenchmark(Benchmark):
         experiment_data[self._generator.name][self._epoch + 1] = measure(self._generator,
                                                                          initial_model,
                                                                          initial_samples,
-                                                                         initial_proba)
+                                                                         initial_proba,
+                                                                         calculate_p)
 
         # Plot data distributions
         plot_distribution(self._generator.dataset, self._generator.model, path,

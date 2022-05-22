@@ -26,7 +26,7 @@ class RecourseExperiment():
         experiment_name (str):
             Name of the experiment that will be used as part of the directory name where results are saved.
     """
-    def __init__(self, dataset, model, generators, experiment_name='experiment', test_parameters={}):
+    def __init__(self, dataset, model, generators, experiment_name='experiment'):
         assert len(generators) != 0
 
         # Experiment data is saved into a new directory
@@ -52,14 +52,14 @@ class RecourseExperiment():
         self.initial_samples = {'positive': pos_sample, 'negative': neg_sample}
 
         self.experiment_data = {}
-        self.experiment_data['parameters'] = test_parameters
+        self.experiment_data['parameters'] = self.describe()
 
         self.benchmarks = {}
         for g in self.generators:
             self.experiment_data[g.name] = {0: {}}
             self.benchmarks[g.name] = DynamicBenchmark(model, g.recourse_method, g, self.factuals)
 
-    def run(self, total_recourse=0.8, recourse_per_epoch=0.01):
+    def run(self, epochs=0.8, recourse_per_epoch=0.05, calculate_p=False):
         """
         Driver code to execute an experiment that allows to compare the dynamics of recourse
         applied by some generator to a benchmark described by Wachter et al. (2017).
@@ -74,20 +74,24 @@ class RecourseExperiment():
         """
         path = f'../experiment_data/{self.experiment_name}'
 
-        # Convert ratio of samples that should undergo recourse in a single epoch into a number
-        recourse_per_epoch = max(int(recourse_per_epoch * len(self.factuals)), 1)
-        # Convert ratio of samples that should undergo recourse in total into a number of epochs
-        epochs = max(int(min(total_recourse, 1) * len(self.factuals) / recourse_per_epoch), 1)
+        if isinstance(recourse_per_epoch, float):
+            # Convert ratio of samples that should undergo recourse in a single epoch into a number
+            recourse_per_epoch = max(int(recourse_per_epoch * len(self.factuals)), 1)
+        if isinstance(epochs, float):
+            # Convert ratio of samples that should undergo recourse in total into a number of epochs
+            epochs = max(int(min(epochs, 1) * len(self.factuals) / recourse_per_epoch), 1)
 
         for g in self.generators:
             self.benchmarks[g.name].start(self.experiment_data, path, self.initial_model,
-                                          self.initial_samples, self.initial_proba)
+                                          self.initial_samples, self.initial_proba, calculate_p)
 
         for epoch in range(epochs - 1):
             log.info(f"Starting epoch {epoch + 1}")
             # Generate a subset S of factuals that have never been encountered by the generators
             sample_size = min(recourse_per_epoch, len(self.factuals_index))
             current_factuals_index = np.random.choice(self.factuals_index, replace=False, size=sample_size)
+            if len(current_factuals_index) == 0:
+                break
             # We do not want to accidentally generate a counterfactual from a counterfactual
             self.factuals_index = [f for f in self.factuals_index if f not in current_factuals_index]
 
@@ -97,7 +101,8 @@ class RecourseExperiment():
                                                        current_factuals_index,
                                                        self.initial_model,
                                                        self.initial_samples,
-                                                       self.initial_proba)
+                                                       self.initial_proba,
+                                                       calculate_p)
 
         # Measure the quality of recourse
         self.experiment_data['evaluation'] = {}
@@ -112,14 +117,14 @@ class RecourseExperiment():
 
             self.experiment_data['evaluation'][g.name] = {
                 'success_rate': success_rate,
-                'avg_time': average_time,
+                'avg_time_per_ce': average_time,
                 'avg_redundancy': benchmark.compute_redundancy().mean(axis=0).iloc[0],
-                'avg_ynn': benchmark.compute_ynn().mean(axis=0).iloc[0],
+                'avg_ynn_of_counterfactual': benchmark.compute_ynn().mean(axis=0).iloc[0],
                 'avg_constraint_violation': benchmark.compute_constraint_violation().mean(axis=0).iloc[0],
-                'avg_changes': distances.iloc[0],
-                'avg_taxicab': distances.iloc[1],
-                'avg_euclidean': np.sqrt(distances.iloc[2]),
-                'avg_max_change': distances.iloc[3]
+                'avg_changes_applied': distances.iloc[0],
+                'avg_taxicab_distance': distances.iloc[1],
+                'avg_euclidean_distance': np.sqrt(distances.iloc[2]),
+                'avg_max_change_size': distances.iloc[3]
             }
 
     def save_data(self, path=None):
@@ -134,3 +139,9 @@ class RecourseExperiment():
         path = path or f'../experiment_data/{self.experiment_name}/measurements.json'
         with open(path, 'w') as outfile:
             json.dump(self.experiment_data, outfile, sort_keys=True, indent=4)
+
+    def describe(self):
+        result = {}
+        for g in self.generators:
+            result[g.name] = g.describe()
+        return result

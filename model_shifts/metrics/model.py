@@ -40,7 +40,7 @@ def disagreement_distance(data, target, initial_model, updated_model):
     return count_mismatch / len(initial_pred)
 
 
-def class_boundary_distance(data, target, model, cls):
+def class_decisiveness(data, target, model, cls):
     """Calculates the pseudo-distance of points to the decision boundary
     measured as the average probability of classification centered around 0.5.
     High value corresponds to a large margin of classification.
@@ -63,7 +63,7 @@ def class_boundary_distance(data, target, model, cls):
     return np.linalg.norm(proba[:, cls] - 0.5) / len(proba)
 
 
-def boundary_distance(dataset, model):
+def decisiveness(dataset, model):
     """Measures the boundary pseudo-distance for both classes.
 
     Args:
@@ -76,12 +76,12 @@ def boundary_distance(dataset, model):
         dict: A dictionary with values calculated for both classes.
     """
     return {
-        'positive': class_boundary_distance(dataset._df_test, dataset.target, model, dataset.positive),
-        'negative': class_boundary_distance(dataset._df_test, dataset.target, model, dataset.negative)
+        'positive': class_decisiveness(dataset._df_test, dataset.target, model, dataset.positive),
+        'negative': class_decisiveness(dataset._df_test, dataset.target, model, dataset.negative)
     }
 
 
-def model_MMD(dataset, model, initial_proba):
+def model_MMD(dataset, model, initial_proba, calculate_p):
     """Calculates the MMD on the probabilities of classification assigned by the model
     to the set of (all)  instances. Allows to quantify the model shift.
 
@@ -100,11 +100,11 @@ def model_MMD(dataset, model, initial_proba):
     updated_proba = model.predict_proba(dataset._df.loc[:, dataset._df.columns != dataset.target])
     mmd = MMD(initial_proba[sample], updated_proba[sample])
 
-    iterations = 1000
-    mmd_null = MMD_null_hypothesis(initial_proba, updated_proba, iterations)
-    p = max(1 / iterations, np.count_nonzero(mmd_null >= mmd) / iterations)
+    result = {'value': mmd}
 
-    return {
-        'value': mmd,
-        'p': p
-    }
+    if calculate_p:
+        iterations = 1000
+        mmd_null = MMD_null_hypothesis(initial_proba, updated_proba, iterations)
+        result['p'] = max(1 / iterations, np.count_nonzero(mmd_null >= mmd) / iterations)
+
+    return result

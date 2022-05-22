@@ -143,6 +143,13 @@ class RecourseGenerator():
         log.info(f'Updating the {self.name} model')
         self.model = train_model(self.dataset, self.model_params, retrain=True)
 
+    def describe(self):
+        return {
+            'type': self.recourse_method.__name__,
+            'params': self.generator_params,
+            'timeout': self.timeout
+        }
+
 
 def recourse_worker(generator, factual):
     """

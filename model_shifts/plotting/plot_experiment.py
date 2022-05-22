@@ -49,7 +49,7 @@ def plot_experiment(output_directory, generators, plot_type, dict_path,
     with open(f'{output_directory}/{file_name}') as data_file:
         data = json.load(data_file)
 
-        plt.figure(dpi=150)
+        plt.figure(dpi=300)
         plt.grid(True)
 
         # Apply consistent theme over all plots generated for the project
@@ -82,4 +82,4 @@ def plot_experiment(output_directory, generators, plot_type, dict_path,
         if show_plot:
             plt.show()
 
-        plt.close
+        plt.close()

@@ -66,21 +66,20 @@ def MMD_null_hypothesis(x, y, iterations=10000):
     return mmd_null
 
 
-def class_MMD(data, target, initial_sample, cls, iterations=1000):
+def class_MMD(data, target, initial_sample, cls, calculate_p, iterations=1000):
     cls_individuals = data.loc[data[target] == cls]
     cls_sample = cls_individuals.sample(n=min(len(cls_individuals), 200)).to_numpy()
-
     mmd = MMD(initial_sample, cls_sample)
-    mmd_null = MMD_null_hypothesis(initial_sample, cls_sample, iterations)
-    p = max(1 / iterations, np.count_nonzero(mmd_null >= mmd) / iterations)
+    result = {'value': mmd}
 
-    return {
-        'value': mmd,
-        'p': p
-    }
+    if calculate_p:
+        mmd_null = MMD_null_hypothesis(initial_sample, cls_sample, iterations)
+        result['p'] = max(1 / iterations, np.count_nonzero(mmd_null >= mmd) / iterations)
+
+    return result
 
 
-def test_MMD(dataset, initial_samples):
+def test_MMD(dataset, initial_samples, calculate_p):
     """
     Measure the MMD between the initial distribution and the current distribution for both classes.
 
@@ -95,9 +94,9 @@ def test_MMD(dataset, initial_samples):
     """
     return {
         'positive': class_MMD(dataset._df, dataset._target, initial_samples['positive'],
-                              dataset._positive, iterations=1000),
+                              dataset._positive, calculate_p, iterations=1000),
         'negative': class_MMD(dataset._df, dataset._target, initial_samples['negative'],
-                              dataset._negative, iterations=1000)
+                              dataset._negative, calculate_p, iterations=1000)
     }
 
 

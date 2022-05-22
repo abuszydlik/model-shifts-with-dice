@@ -1,9 +1,9 @@
-from .model import disagreement_distance, boundary_distance, model_MMD
+from .model import disagreement_distance, decisiveness, model_MMD
 from .distribution import measure_distribution, test_MMD
 from .performance import measure_performance
 
 
-def measure(generator, initial_model, initial_samples, initial_proba):
+def measure(generator, initial_model, initial_samples, initial_proba, calculate_p):
     """
     Quantify the dataset and model and save into `experiment_data`.
 
@@ -26,14 +26,10 @@ def measure(generator, initial_model, initial_samples, initial_proba):
                                                     initial_model, generator.model)
 
     # Measure the average distance of a sample from the decision boundary
-    results['boundary_distance'] = boundary_distance(generator.dataset, generator.model)
+    results['decisiveness'] = decisiveness(generator.dataset, generator.model)
 
     # Measure the MMD of the distribution and the model
-    if initial_proba is None:
-        results['MMD'] = 0
-        results['model_MMD'] = 0
-    else:
-        results['MMD'] = test_MMD(generator.dataset, initial_samples)
-        results['model_MMD'] = model_MMD(generator.dataset, generator.model, initial_proba)
+    results['MMD'] = test_MMD(generator.dataset, initial_samples, calculate_p)
+    results['model_MMD'] = model_MMD(generator.dataset, generator.model, initial_proba, calculate_p)
 
     return results
