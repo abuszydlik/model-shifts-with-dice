@@ -9,10 +9,31 @@ from ..plotting.plot_dataset import plot_distribution
 
 
 class DynamicBenchmark(Benchmark):
-    def __init__(self, mlmodel, recourse_method, generator):
+    """
+    Wrapper around the Benchmark class which is used to gather data about the dynamics
+    of a generator and to assess the quality of recourse at the end of the experiment.
+    Supports different recourse methods.
+
+    Attributes:
+        mlmodel (MLModelCatalog):
+            Classifier with additional utilities required by CARLA.
+        generator (RecourseGenerator):
+            An algorithmic recourse generator assessed in the experiment.
+        recourse_method (RecourseMethod):
+            A generator of algorithmic recourse which follows the API of CARLA.
+        factuals (pandas.DataFrame):
+            Factual instances which were provided to the generator during the experiment.
+        counterfactuals (pandas.DataFrame):
+            Counterfactual instances which were created by the generator.
+        epoch (int):
+            Current epoch in the experiment.
+        timer (float):
+            Number of fractional seconds taken to generate the counterfactuals.
+    """
+    def __init__(self, mlmodel, generator, recourse_method):
         self._mlmodel = mlmodel
-        self._recourse_method = recourse_method
         self._generator = generator
+        self._recourse_method = recourse_method
         self._factuals = None
         self._counterfactuals = None
         self._epoch = 0
@@ -24,6 +45,22 @@ class DynamicBenchmark(Benchmark):
 
     def start(self, experiment_data, path, initial_model, initial_samples,
               initial_proba, calculate_p):
+        """Executes the initial steps (epoch 0) of the experiment.
+
+        Args:
+            experiment_data (dict):
+                Dictionary storing all data related to the experiment.
+            path (str):
+                Name of the directory where images are saved.
+            initial_model (MLModelCatalog):
+                Copy of the classifier before the implementation of recourse.
+            initial_samples (dict of numpy.ndarray):
+                Samples from the positive and negative class before the implementation of recourse.
+            initial_proba (numpy.ndarray):
+                Predicted probabilities assigned to samples before the implementation of recourse.
+            calculate_p (Boolean):
+                If True, the statistical significance is calculated for MMD of distribution and model.
+        """
         experiment_data[self._generator.name][0] = measure(self._generator,
                                                            initial_model,
                                                            initial_samples,
@@ -34,10 +71,31 @@ class DynamicBenchmark(Benchmark):
         plot_distribution(self._generator.dataset, self._generator.model, path,
                           self._generator.name, 'distribution', self._epoch)
 
+        # Due to some bug in CARLA a model needs to be retrained once before experiment begins
         self._generator.update_model()
 
     def next_iteration(self, experiment_data, path, current_factuals_index,
                        initial_model, initial_samples, initial_proba, calculate_p):
+        """
+        Executes an iteration of the experiment that consists of the generation of recourse,
+        measurement of shifts, and update of the underlying model.
+
+        Args:
+            experiment_data (dict):
+                Dictionary storing all data related to the ongoing experiment.
+            path (str):
+                Name of the directory where images are saved.
+            current_factuals_index (list of int):
+                Indexes of the counterfactuals which should be treated by all generators in this iteration.
+            initial_model (MLModelCatalog):
+                Copy of the classifier before the implementation of recourse.
+            initial_samples (dict of numpy.ndarray):
+                Samples from the positive and negative class before the implementation of recourse.
+            initial_proba (numpy.ndarray):
+                Predicted probabilities assigned to samples before the implementation of recourse.
+            calculate_p (Boolean):
+                If True, the statistical significance is calculated for MMD of distribution and model.
+        """
         experiment_data[self._generator.name][self._epoch + 1] = {}
 
         # Find relevant factuals

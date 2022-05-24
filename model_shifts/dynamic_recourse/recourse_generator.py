@@ -21,15 +21,16 @@ class RecourseGenerator():
         model (MLModelCatalog):
             Classifier with additional utilities required by CARLA.
         recourse_method (RecourseMethod):
-            A generator of algorithmic recourse implemented in CARLA.
+            A generator of algorithmic recourse which follows the API of CARLA.
         generator_params (dict):
             Dictionary of parameters that affect the actions of the generator.
         model_params (dict):
             Hyper-parameters for the underlying black-box model.
         timeout (int):
             Number of seconds after which the generation of a counterfactual should be considered a failure.
+        num_found (int):
+            Number of successfully generated counterfactuals.
     """
-
     def __init__(self, name, dataset, model, recourse_method,
                  generator_params, model_params, timeout=None):
         self.name = name
@@ -50,6 +51,7 @@ class RecourseGenerator():
         sig = signature(self.recourse_method.__init__)
         params = [param for param in sig.parameters]
 
+        # RecourseMethods of CARLA do not follow a common interface
         if 'data' in params:
             self.generator = self.recourse_method(mlmodel=self.model,
                                                   data=self.dataset,
@@ -88,7 +90,6 @@ class RecourseGenerator():
         Returns:
             int: Number of successfully generated counterfactuals.
         """
-
         log.info(f"Applying the {self.name} generator.")
 
         if factuals is None or len(factuals) == 0:
@@ -108,7 +109,6 @@ class RecourseGenerator():
         Returns:
             int: Number of successfully generated counterfactuals.
         """
-
         log.info(f"Applying the {self.name} generator.")
 
         if factuals is None or len(factuals) == 0:
@@ -144,6 +144,12 @@ class RecourseGenerator():
         self.model = train_model(self.dataset, self.model_params, retrain=True)
 
     def describe(self):
+        """
+        Returns a dictionary containing basic information about this generator.
+
+        Returns:
+            dict: Dictionary that describes the generator including its type and hyper-parameters.
+        """
         return {
             'type': self.recourse_method.__name__,
             'params': self.generator_params,
@@ -207,10 +213,13 @@ def train_model(dataset, hyper_params, model_type='ann', retrain=False):
             Catalog containing a dataframe, set of train and test records, and the target.
         hyper_params (dict):
             Dictionary storing all custom hyper-parameter values for the model.
+        model_type (str):
+            Type of a model (ann / linear) that is supported by CARLA.
+        retrain (Boolean):
+            If true, the model is loaded from the file and retrained.
 
     Returns:
-        MLModelCatalog:
-            Classifier with additional utilities required by CARLA.
+        MLModelCatalog: Classifier with additional utilities required by CARLA.
     """
     kwargs = {'save_name_params': "_".join([str(size) for size in hyper_params['hidden_size']])}
     model = DynamicMLModelCatalog(dataset, model_type=model_type,

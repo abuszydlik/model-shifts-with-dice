@@ -34,7 +34,7 @@ def plot_experiment(output_directory, generators, plot_type, dict_path,
     Args:
         output_directory (str):
             Name of the directory where images are saved.
-        generator_name (List[str]):
+        generators (List[str]):
             List of the names of all generators which should be plotted.
         plot_type (str):
             Type of the created plot.

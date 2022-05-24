@@ -67,6 +67,24 @@ def MMD_null_hypothesis(x, y, iterations=10000):
 
 
 def class_MMD(data, target, initial_sample, cls, calculate_p, iterations=1000):
+    """
+    Calculates MMD for samples belonging to a single class (ground truth).
+
+    Args:
+        data (pandas.DataFrame):
+            Records along with their labels.
+        target (str):
+            Name of the column that contains the target variable.
+        initial_samples (dict of numpy.ndarray):
+            Samples from the specific class before the implementation of recourse.
+        calculate_p (Boolean):
+                If True, the statistical significance is calculated for MMD.
+        iterations (int):
+            Number of permutations that should be created for the testing.
+
+    Returns:
+        dict: A dictionary containing the current value of MMD and, optionally, its statistical significance.
+    """
     cls_individuals = data.loc[data[target] == cls]
     cls_sample = cls_individuals.sample(n=min(len(cls_individuals), 200)).to_numpy()
     mmd = MMD(initial_sample, cls_sample)
@@ -88,6 +106,8 @@ def test_MMD(dataset, initial_samples, calculate_p):
             Records along with their labels.
         initial_samples (dict):
             A sample of points of both classes from the initial distribution.
+        calculate_p (Boolean):
+            If True, the statistical significance is calculated for MMD.
 
     Returns:
         dict: A dictionary containing current values of MMD for the positive and the negative class.
@@ -114,7 +134,7 @@ def k_means(data, min_clusters=1, max_clusters=5):
             Maximal number of clusters that is expected in the dataset.
 
     Returns:
-        int: Estimated number of clusters that yields the elbow point on an inertia graph.
+        dict: Inertias for all tested values of k and estimated operating point.
     """
     clusters = []
     scores = []

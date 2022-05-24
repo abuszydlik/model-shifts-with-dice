@@ -3,35 +3,29 @@ import numpy as np
 import pandas as pd
 
 
-def generate_samples(mean, cov, size, max_value):
-    if isinstance(cov, np.ndarray):
-        samples = np.random.multivariate_normal(mean, cov, size=size)
-    else:
-        distribution = np.random.normal(int(max_value / 2), np.sqrt(cov), size)
-        counts, bins = np.histogram(distribution, np.linspace(0, max_value, num=(max_value + 1)))
-        result = []
-        for index, bin in enumerate(bins):
-            values = [bin] * counts[index]
-            result.extend(values)
-        samples = np.array(result)
-    return samples
-
-
 def generate_continuous_dataset(means0, covs0, sizes0, means1, covs1, sizes1, file_name="data.csv"):
     """
-    Generates a dataset which contains `num_samples` samples divided into two normally-distributed classes.
+    Generates a two-class dataset of continuous features where both classes
+    contain a specified number of peaks drawn from Gaussian distributions.
 
     Args:
-        means0 (list of numpy.ndarray): the means of all peaks in the distribution of class A.
-        covs0 (list of numpy.ndarray): the covariance matrices for all peaks in the distribution of class A.
-        means1 (list of numpy.ndarray): the means of all peaks in the distribution of class B.
-        covs1 (list of numpy.ndarray): the covariance matrices for all peaks in the distribution of class B.
-        num_samples (int): the total number of samples expected in the dataset.
-        modality (list of float): the relative size of the peaks if distributions are multi-modal.
-        file_name (str): the name of the file where the resulting dataset will be stored.
+        means0 (list of numpy.ndarray):
+            Means of all peaks in the distribution of the negative class.
+        covs0 (list of numpy.ndarray):
+            Covariance matrices for all peaks in the distribution of the negative class.
+        sizes0 (list of int):
+            Sizes (in number of samples) for all peaks in the distribution of the negative class.
+        means1 (list of numpy.ndarray):
+            Means of all peaks in the distribution of the positive class.
+        covs1 (list of numpy.ndarray):
+            Covariance matrices for all peaks in the distribution of the positive class.
+        sizes1 (list of int):
+            Sizes (in number of samples) for all peaks in the distribution of the positive class.
+        file_name (str):
+            Name of the file where the resulting dataset will be stored.
 
     Returns:
-        numpy.ndarray: dataset containing samples of two classes distributed according to the (multi-modal) Gaussian.
+        numpy.ndarray: Dataset containing samples of two classes.
     """
     # Generate the random samples
     samples0 = np.random.multivariate_normal(means0[0], covs0[0], sizes0[0])
@@ -53,7 +47,7 @@ def generate_continuous_dataset(means0, covs0, sizes0, means1, covs1, sizes1, fi
     # Construct the dataset
     dataset = np.r_[class0, class1]
 
-    # Plot the resulting distribution
+    # Plot the resulting distribution only if it contains two features + target
     if dataset.shape[1] == 3:
         plt.scatter(dataset[:, 0], dataset[:, 1], c=colors[dataset[:, 2].astype(int)])
         plt.axis('equal')
@@ -67,6 +61,18 @@ def generate_continuous_dataset(means0, covs0, sizes0, means1, covs1, sizes1, fi
 
 
 def generate_categorical_samples(size, ranges):
+    """
+    Generates a set of samples with normally-distributed categorical features.
+
+    Args:
+        size (int):
+            Total number of samples to be generated.
+        ranges (list of (int, int)):
+            List containing the minimum and maximum value for each of the features.
+
+    Returns:
+        numpy.ndarray: Set of samples with categorical features.
+    """
     # Initialize the numpy array representing all samples in the class
     samples = np.zeros((size, len(ranges)), dtype=np.int)
 
@@ -87,6 +93,25 @@ def generate_categorical_samples(size, ranges):
 
 
 def generate_categorical_dataset(size0, ranges0, size1, ranges1, file_name="data.csv"):
+    """
+    Generates a two-class dataset of categorical features where both classes
+    contain a specified number of features created based on Gaussian distributions.
+
+    Args:
+        size0 (int):
+            Size (in number of samples) of the negative class.
+        ranges0 (list of (int, int)):
+            Tuples describing the minimum and maximum value for each feature for the negative class.
+        size1 (int):
+            Size (in number of samples) of the positive class.
+        ranges1 (list of (int, int)):
+            Tuples describing the minimum and maximum value for each feature for the positive class.
+        file_name (str):
+            Name of the file where the resulting dataset will be stored.
+
+    Returns:
+        numpy.ndarray: Dataset containing samples of two classes.
+    """
 
     samples0 = generate_categorical_samples(size0, ranges0)
     samples1 = generate_categorical_samples(size1, ranges1)

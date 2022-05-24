@@ -11,20 +11,14 @@ class DynamicMLModelCatalog(MLModelCatalog):
     allowing for the efficient and unbiased measurement of the dynamics of recourse.
 
     Attributes:
-        data (DataCatalog):
-            Dataset which will be used to train a model and conduct experiments.
+        dataset (DataCatalog):
+            Catalog containing a dataframe, set of train and test records, and the target.
         model_type (str):
             Black-box model used for classification, currently this class supports only ANNs and Logistic Regression.
         backend (str):
-            Specifies the framework used on the backend, currently this class supports only PyTorch.
-        cache (Boolean):
-            If True, the framework will attempt to load a model that was previously cached.
-        models_home (str):
-            Path to the directory where models should be saved after they are trained.
-        load_online: (Boolean):
-            If True, a pretrained model will be loaded.
-        kwargs (dict):
-            Dictionary of optional keyworded arguments.
+            Framework used on the backend, currently this class supports only PyTorch.
+        save_name: (str):
+            Name of the file with the model.
     """
     def __init__(self, data: DataCatalog, model_type: str, backend: str = "pytorch",
                  load_online: bool = True, **kwargs) -> None:
@@ -46,9 +40,15 @@ class DynamicMLModelCatalog(MLModelCatalog):
 
     @property
     def save_name(self) -> str:
+        """
+        Getter for the name of the file where the model is stored.
+
+        Returns:
+            str: Name of the file with the model.
+        """
         return self._save_name
 
-    def retrain(self, learning_rate=0.01, epochs=5, batch_size=1, hidden_size=[4]):
+    def retrain(self, learning_rate=0.01, epochs=5, batch_size=1):
         """
         Loads a cached model and retrains it on an updated dataset.
 

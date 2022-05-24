@@ -10,8 +10,17 @@ def measure(generator, initial_model, initial_samples, initial_proba, calculate_
     Args:
         generator (RecourseGenerator):
             Recourse generator along with utilities required to conduct experiments.
-        epoch (int):
-            Current epoch in the experiment.
+        initial_model (MLModelCatalog):
+            Copy of the classifier before the implementation of recourse.
+        initial_samples (dict of numpy.ndarray):
+            Samples from the positive and negative class before the implementation of recourse.
+        initial_proba (numpy.ndarray):
+            Predicted probabilities assigned to samples before the implementation of recourse.
+        calculate_p (Boolean):
+            If True, the statistical significance is calculated for MMD of distribution and model.
+
+    Returns:
+        dict: A dictionary storing all measurements for the current epoch.
     """
     results = {}
 

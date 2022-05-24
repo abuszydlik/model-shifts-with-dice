@@ -2,21 +2,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_distribution(data, model, output_directory, generator_name,
+def plot_distribution(dataset, model, output_directory, generator_name,
                       plot_type, plot_id, show_plot=False):
     """
     Generates a plot a two-class dataset and saves it to a file.
 
     Args:
-        data (pandas.DataFrame):
-            Records along with their labels.
+        dataset (DataCatalog):
+            Catalog containing a dataframe, set of train and test records, and the target.
         model (MLModelCatalog):
             Classifier implementing a `predict_proba()` method.
         output_directory (str):
             Name of the directory where images are saved.
         generator_name (str):
             Name of the applied recourse generator.
-        plot_name (str):
+        plot_type (str):
             Type of the created plot.
         plot_id (str):
             ID for the generated plot (e.g. consecutive numbers for different distributions).
@@ -24,11 +24,11 @@ def plot_distribution(data, model, output_directory, generator_name,
             If True the plot will also be outputted directly to the notebook.
     """
     # Plot only two dimensional data
-    if data._df.to_numpy().shape[1] != 3:
+    if dataset._df.to_numpy().shape[1] != 3:
         return
 
-    train = data._df_train.to_numpy()
-    test = data._df_test.to_numpy()
+    train = dataset._df_train.to_numpy()
+    test = dataset._df_test.to_numpy()
     fig, ax = plt.subplots()
 
     fig.set_dpi(300)
@@ -38,7 +38,7 @@ def plot_distribution(data, model, output_directory, generator_name,
     ax.set_xlabel('$feature1$')
     ax.set_ylabel('$feature2$')
 
-    x0, x1, z = calculate_boundary(data._df, model)
+    x0, x1, z = calculate_boundary(dataset._df, model)
     ax.contourf(x0, x1, z, cmap='plasma', levels=10, alpha=0.8)
 
     y = test[:, 2]
@@ -66,6 +66,20 @@ def plot_distribution(data, model, output_directory, generator_name,
 
 
 def calculate_boundary(data, model, resolution=0.01):
+    """
+    Calculates the 2D decision boundary for a contour plot.
+
+    Args:
+        data (pandas.DataFrame):
+            Records along with their labels.
+        model (MLModelCatalog):
+            Classifier implementing a `predict_proba()` method.
+        resolution (float, optional):
+            1 / N for the number of points sampled in a unit length; defaults to 0.01.
+
+    Returns:
+        tuple of (numpy.ndarray, numpy.ndarray, numpy.ndarray): Meshgrid and predicted probabilities.
+    """
     data = data.to_numpy()
     x_min = np.min(data[:, :], axis=0) - 1
     x_max = np.max(data[:, :], axis=0) + 1

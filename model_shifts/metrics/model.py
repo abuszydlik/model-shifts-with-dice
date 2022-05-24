@@ -92,6 +92,8 @@ def model_MMD(dataset, model, initial_proba, calculate_p):
             Classifier with additional utilities required by CARLA.
         initial_proba (numpy.ndarray):
             Probabilities assigned by the model to a set of samples.
+        calculate_p (Boolean):
+            If True, the statistical significance is calculated for the MMD of the model.
 
     Returns:
         dict: A dictionary with an estimate of current MMD and p-value for that estimate.

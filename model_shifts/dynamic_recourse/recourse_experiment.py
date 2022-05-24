@@ -15,14 +15,22 @@ class RecourseExperiment():
     Allows to conduct an experiment about the dynamics of algorithmic recourse.
 
     Attributes:
-        dataset (DataCatalog):
-            Catalog containing a dataframe, set of train and test records, and the target.
-        model (MLModelCatalog)
-            Classifier with additional utilities required by CARLA.
+        experiment_name (str):
+            Name of the experiment with a distinguishing timestamp, used as the directory name where results are saved.
+        initial_dataset (DataCatalog):
+            Copy of the dataset before the implementation of recourse.
+        initial_model (MLModelCatalog):
+            Copy of the classifier before the implementation of recourse.
+        initial_proba (numpy.ndarray):
+            Predicted probabilities assigned to samples before the implementation of recourse.
         generators (List[RecourseGenerator]):
             List of one or more generators which will be measured in the experiment.
-        experiment_name (str):
-            Name of the experiment that will be used as part of the directory name where results are saved.
+        initial_samples (dict of numpy.ndarray):
+            Samples from the positive and negative class before the implementation of recourse.
+        experiment_data (dict):
+            Dictionary storing all data related to the ongoing experiment.
+        benchmarks (List[Benchmark]):
+            List of one or more Benchmark objects used to track the dynamics of the generators.
     """
     def __init__(self, dataset, model, generators, experiment_name='experiment'):
         assert len(generators) != 0
@@ -31,27 +39,29 @@ class RecourseExperiment():
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         self.experiment_name = f'{timestamp}_{experiment_name}'
         os.makedirs(f'../experiment_data/{self.experiment_name}')
+
+        # Store the initial dataset and model used as baseline for the calculation of dynamics
         self.initial_dataset = deepcopy(dataset._df)
         self.initial_model = deepcopy(model)
         self.initial_proba = model.predict_proba(dataset._df.loc[:, dataset._df.columns != dataset.target])
 
         self.generators = generators
 
+        # Sample the initial classes for the calculations of MMD
         pos_individuals = dataset.df_train.loc[dataset.df_train[dataset.target] == dataset.positive]
         pos_sample = pos_individuals.sample(n=min(len(pos_individuals), 200)).to_numpy()
-
         neg_individuals = dataset.df_train.loc[dataset.df_train[dataset.target] == dataset.negative]
         neg_sample = neg_individuals.sample(n=min(len(neg_individuals), 200)).to_numpy()
-
         self.initial_samples = {'positive': pos_sample, 'negative': neg_sample}
 
+        # Initialize the object storing all data about the experiment
         self.experiment_data = {}
         self.experiment_data['parameters'] = self.describe()
 
         self.benchmarks = {}
         for g in self.generators:
             self.experiment_data[g.name] = {0: {}}
-            self.benchmarks[g.name] = DynamicBenchmark(model, g.recourse_method, g)
+            self.benchmarks[g.name] = DynamicBenchmark(model, g, g.recourse_method)
 
     def run(self, epochs=0.8, recourse_per_epoch=0.05, calculate_p=False):
         """
@@ -65,22 +75,28 @@ class RecourseExperiment():
             recourse_per_epoch (float):
                 Value between 0 and 1 representing the proportion of samples from the training set
                 which should have recourse applied to them in a single iteration.
+            calculate_p (Boolean):
+                If True, the statistical significance is calculated for MMD of distribution and model.
         """
         path = f'../experiment_data/{self.experiment_name}'
 
+        # These parameters can be provided as floats referring to the proportion of the dataset.
         if isinstance(recourse_per_epoch, float):
             # Convert ratio of samples that should undergo recourse in a single epoch into a number
             recourse_per_epoch = max(int(recourse_per_epoch * len(self.factuals)), 1)
         if isinstance(epochs, float):
             # Convert ratio of samples that should undergo recourse in total into a number of epochs
             epochs = max(int(min(epochs, 1) * len(self.factuals) / recourse_per_epoch), 1)
+
         self.experiment_data['parameters']['epochs'] = epochs
         self.experiment_data['parameters']['recourse_per_epoch'] = recourse_per_epoch
 
+        # Execute the initial measurements for all generators
         for g in self.generators:
             self.benchmarks[g.name].start(self.experiment_data, path, self.initial_model,
                                           self.initial_samples, self.initial_proba, calculate_p)
 
+        # Apply recourse over the specified number of epochs
         for epoch in range(epochs - 1):
             log.info(f"Starting epoch {epoch + 1}")
 
@@ -103,7 +119,7 @@ class RecourseExperiment():
                                                        self.initial_proba,
                                                        calculate_p)
 
-        # Measure the quality of recourse
+        # Measure the quality of recourse using CARLA tools
         self.experiment_data['evaluation'] = {}
         for g in self.generators:
             benchmark = self.benchmarks[g.name]
@@ -134,12 +150,17 @@ class RecourseExperiment():
             path (str):
                 Directory where the dictionary of experiment data should be written.
         """
-
         path = path or f'../experiment_data/{self.experiment_name}/measurements.json'
         with open(path, 'w') as outfile:
             json.dump(self.experiment_data, outfile, sort_keys=True, indent=4)
 
     def describe(self):
+        """
+        Returns as dictionary the information about all generators under test.
+
+        Returns:
+            dict: Dictionary containing names and hyper-parameters of all generators.
+        """
         result = {}
         for g in self.generators:
             result[g.name] = g.describe()
