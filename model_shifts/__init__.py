@@ -3,6 +3,7 @@
 from .datasets.generate_dataset import generate_continuous_dataset, generate_categorical_dataset
 from .dynamic_recourse.dynamic_benchmark import DynamicBenchmark
 from .dynamic_recourse.dynamic_csv_catalog import DynamicCsvCatalog
+from .dynamic_recourse.dynamic_online_catalog import DynamicOnlineCatalog
 from .dynamic_recourse.dynamic_mlmodel_catalog import DynamicMLModelCatalog
 from .dynamic_recourse.recourse_experiment import RecourseExperiment
 from .dynamic_recourse.recourse_generator import RecourseGenerator

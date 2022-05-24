@@ -10,8 +10,6 @@ from .dynamic_benchmark import DynamicBenchmark
 from datetime import datetime
 
 
-# TODO: What to do if a generator times out? do we accept different numbers of samples?
-# TODO: Add benchmarks
 class RecourseExperiment():
     """
     Allows to conduct an experiment about the dynamics of algorithmic recourse.
@@ -43,10 +41,10 @@ class RecourseExperiment():
         self.factuals = predict_negative_instances(model, dataset.df_train)
         self.factuals_index = self.factuals.index.tolist()
 
-        pos_individuals = dataset.df_train.loc[dataset.df_train['target'] == dataset.positive]
+        pos_individuals = dataset.df_train.loc[dataset.df_train[dataset.target] == dataset.positive]
         pos_sample = pos_individuals.sample(n=min(len(pos_individuals), 200)).to_numpy()
 
-        neg_individuals = dataset.df_train.loc[dataset.df_train['target'] == dataset.negative]
+        neg_individuals = dataset.df_train.loc[dataset.df_train[dataset.target] == dataset.negative]
         neg_sample = neg_individuals.sample(n=min(len(neg_individuals), 200)).to_numpy()
 
         self.initial_samples = {'positive': pos_sample, 'negative': neg_sample}

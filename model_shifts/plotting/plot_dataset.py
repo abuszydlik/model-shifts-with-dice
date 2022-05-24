@@ -23,6 +23,9 @@ def plot_distribution(data, model, output_directory, generator_name,
         show_plot (Boolean):
             If True the plot will also be outputted directly to the notebook.
     """
+    # Plot only two dimensional data
+    if data._df.to_numpy().shape[1] != 3:
+        return
 
     train = data._df_train.to_numpy()
     test = data._df_test.to_numpy()
