@@ -4,17 +4,16 @@ import timeit
 
 from carla import MLModelCatalog
 from carla.evaluation.benchmark import Benchmark
-from copy import deepcopy
 from ..metrics.measurement import measure
 from ..plotting.plot_dataset import plot_distribution
 
 
 class DynamicBenchmark(Benchmark):
-    def __init__(self, mlmodel, recourse_method, generator, factuals):
+    def __init__(self, mlmodel, recourse_method, generator):
         self._mlmodel = mlmodel
         self._recourse_method = recourse_method
         self._generator = generator
-        self._factuals = deepcopy(factuals)
+        self._factuals = None
         self._counterfactuals = None
         self._epoch = 0
         self._timer = 0
@@ -43,6 +42,11 @@ class DynamicBenchmark(Benchmark):
 
         # Find relevant factuals
         current_factuals = self._generator.dataset._df.iloc[current_factuals_index]
+
+        if self._factuals is None:
+            self._factuals = current_factuals
+        else:
+            self._factuals = pd.concat([self._factuals, current_factuals], axis=0)
 
         # Apply recourse
         start_time = timeit.default_timer()

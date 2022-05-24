@@ -100,7 +100,7 @@ def test_MMD(dataset, initial_samples, calculate_p):
     }
 
 
-def k_means(data, min_clusters=1, max_clusters=10):
+def k_means(data, min_clusters=1, max_clusters=5):
     """
     Applies the k-means algorithm and automatically estimates the elbow point.
     The algorithm used to calculate the elbow point is described in 10.1109/ICDCSW.2011.20
@@ -128,7 +128,10 @@ def k_means(data, min_clusters=1, max_clusters=10):
     # if the counterfactual instances form their own cluster(s), the value returned by this method should change.
     kneedle = KneeLocator(clusters, scores, curve="convex", direction="decreasing")
 
-    return int(kneedle.elbow)
+    return {
+        'inertias': scores,
+        'estimated_elbow': int(kneedle.elbow)
+    }
 
 
 def class_statistics(dataset, aggregate):

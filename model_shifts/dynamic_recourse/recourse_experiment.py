@@ -36,10 +36,6 @@ class RecourseExperiment():
         self.initial_proba = model.predict_proba(dataset._df.loc[:, dataset._df.columns != dataset.target])
 
         self.generators = generators
-        # factuals are a list of instances that the model expects to belong to the negative class;
-        # in order to acurately measure the performance of the dataset we never change the test set
-        self.factuals = predict_negative_instances(model, dataset.df_train)
-        self.factuals_index = self.factuals.index.tolist()
 
         pos_individuals = dataset.df_train.loc[dataset.df_train[dataset.target] == dataset.positive]
         pos_sample = pos_individuals.sample(n=min(len(pos_individuals), 200)).to_numpy()
@@ -55,7 +51,7 @@ class RecourseExperiment():
         self.benchmarks = {}
         for g in self.generators:
             self.experiment_data[g.name] = {0: {}}
-            self.benchmarks[g.name] = DynamicBenchmark(model, g.recourse_method, g, self.factuals)
+            self.benchmarks[g.name] = DynamicBenchmark(model, g.recourse_method, g)
 
     def run(self, epochs=0.8, recourse_per_epoch=0.05, calculate_p=False):
         """
@@ -78,6 +74,8 @@ class RecourseExperiment():
         if isinstance(epochs, float):
             # Convert ratio of samples that should undergo recourse in total into a number of epochs
             epochs = max(int(min(epochs, 1) * len(self.factuals) / recourse_per_epoch), 1)
+        self.experiment_data['parameters']['epochs'] = epochs
+        self.experiment_data['parameters']['recourse_per_epoch'] = recourse_per_epoch
 
         for g in self.generators:
             self.benchmarks[g.name].start(self.experiment_data, path, self.initial_model,
@@ -85,13 +83,16 @@ class RecourseExperiment():
 
         for epoch in range(epochs - 1):
             log.info(f"Starting epoch {epoch + 1}")
+
+            current_neg_instances = self.initial_dataset.index.to_list()
+            for g in self.generators:
+                generator_factuals = predict_negative_instances(g.model, g.dataset.df_train).index.to_list()
+                current_neg_instances = [f for f in current_neg_instances if f in generator_factuals]
             # Generate a subset S of factuals that have never been encountered by the generators
-            sample_size = min(recourse_per_epoch, len(self.factuals_index))
-            current_factuals_index = np.random.choice(self.factuals_index, replace=False, size=sample_size)
+            sample_size = min(recourse_per_epoch, len(current_neg_instances))
+            current_factuals_index = np.random.choice(current_neg_instances, replace=False, size=sample_size)
             if len(current_factuals_index) == 0:
                 break
-            # We do not want to accidentally generate a counterfactual from a counterfactual
-            self.factuals_index = [f for f in self.factuals_index if f not in current_factuals_index]
 
             # Apply the same set of actions on all generators passed to the experiment
             for g in self.generators:
@@ -107,10 +108,10 @@ class RecourseExperiment():
         for g in self.generators:
             benchmark = self.benchmarks[g.name]
             found_counterfactuals = benchmark._counterfactuals.index
+            success_rate = len(found_counterfactuals) / len(benchmark._factuals)
+            average_time = benchmark._timer / len(found_counterfactuals)
 
             benchmark._factuals = benchmark._factuals.loc[found_counterfactuals]
-            success_rate = g.num_found / max(len(self.factuals) - len(self.factuals_index), 1)
-            average_time = benchmark._timer / len(found_counterfactuals)
             distances = benchmark.compute_distances().mean(axis=0)
 
             self.experiment_data['evaluation'][g.name] = {
