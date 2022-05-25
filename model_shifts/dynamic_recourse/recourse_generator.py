@@ -28,8 +28,6 @@ class RecourseGenerator():
             Hyper-parameters for the underlying black-box model.
         timeout (int):
             Number of seconds after which the generation of a counterfactual should be considered a failure.
-        num_found (int):
-            Number of successfully generated counterfactuals.
     """
     def __init__(self, name, dataset, model, recourse_method,
                  generator_params, model_params, timeout=None):
@@ -40,7 +38,7 @@ class RecourseGenerator():
         self.generator_params = generator_params
         self.model_params = model_params
         self.timeout = timeout
-        self.num_found = 0
+        self.positive_class_proba = 0
 
         self.update_generator()
 
@@ -75,8 +73,8 @@ class RecourseGenerator():
             counterfactuals = self.apply_recourse_with_timeout(factuals)
         else:
             counterfactuals = self.apply_recourse(factuals)
-
         self.dataset._df.update(counterfactuals)
+        self.dataset._df_train.update(counterfactuals)
         return counterfactuals
 
     def apply_recourse(self, factuals):

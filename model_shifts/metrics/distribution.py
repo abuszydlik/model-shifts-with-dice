@@ -66,7 +66,7 @@ def MMD_null_hypothesis(x, y, iterations=10000):
     return mmd_null
 
 
-def class_MMD(data, target, initial_sample, cls, calculate_p, iterations=1000):
+def class_MMD(data, target, initial_sample, cls, calculate_p):
     """
     Calculates MMD for samples belonging to a single class (ground truth).
 
@@ -77,10 +77,8 @@ def class_MMD(data, target, initial_sample, cls, calculate_p, iterations=1000):
             Name of the column that contains the target variable.
         initial_samples (dict of numpy.ndarray):
             Samples from the specific class before the implementation of recourse.
-        calculate_p (Boolean):
-                If True, the statistical significance is calculated for MMD.
-        iterations (int):
-            Number of permutations that should be created for the testing.
+        calculate_p (int):
+            If not None, number of permutations to calculate the statistical significance.
 
     Returns:
         dict: A dictionary containing the current value of MMD and, optionally, its statistical significance.
@@ -91,8 +89,8 @@ def class_MMD(data, target, initial_sample, cls, calculate_p, iterations=1000):
     result = {'value': mmd}
 
     if calculate_p:
-        mmd_null = MMD_null_hypothesis(initial_sample, cls_sample, iterations)
-        result['p'] = max(1 / iterations, np.count_nonzero(mmd_null >= mmd) / iterations)
+        mmd_null = MMD_null_hypothesis(initial_sample, cls_sample, calculate_p)
+        result['p'] = max(1 / calculate_p, np.count_nonzero(mmd_null >= mmd) / calculate_p)
 
     return result
 
@@ -106,17 +104,17 @@ def test_MMD(dataset, initial_samples, calculate_p):
             Records along with their labels.
         initial_samples (dict):
             A sample of points of both classes from the initial distribution.
-        calculate_p (Boolean):
-            If True, the statistical significance is calculated for MMD.
+        calculate_p (int):
+            If not None, number of permutations to calculate the statistical significance.
 
     Returns:
         dict: A dictionary containing current values of MMD for the positive and the negative class.
     """
     return {
         'positive': class_MMD(dataset._df, dataset._target, initial_samples['positive'],
-                              dataset._positive, calculate_p, iterations=1000),
+                              dataset._positive, calculate_p),
         'negative': class_MMD(dataset._df, dataset._target, initial_samples['negative'],
-                              dataset._negative, calculate_p, iterations=1000)
+                              dataset._negative, calculate_p)
     }
 
 

@@ -31,7 +31,7 @@ def measure(generator, initial_model, initial_samples, initial_proba, calculate_
     results['performance'] = measure_performance(generator.dataset, generator.model)
 
     # Measure the disagreement between current model and the initial model
-    results['disagreement'] = disagreement_distance(generator.dataset._df_test, generator.dataset.target,
+    results['disagreement'] = disagreement_distance(generator.dataset, generator.dataset.target,
                                                     initial_model, generator.model)
 
     # Measure the average distance of a sample from the decision boundary

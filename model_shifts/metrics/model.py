@@ -4,7 +4,7 @@ import numpy as np
 from .distribution import MMD, MMD_null_hypothesis
 
 
-def disagreement_distance(data, target, initial_model, updated_model):
+def disagreement_distance(dataset, target, initial_model, updated_model):
     """
     Calculates the Disagreement pseudo-distance defined in https://doi.org/10.1145/1273496.1273541
     as Pr(h(x) != h'(x)), that is the probability that labels assigned by one classifier do not agree
@@ -12,8 +12,8 @@ def disagreement_distance(data, target, initial_model, updated_model):
     As this is an empirical measure, we can vary the number of records in `data`.
 
     Args:
-        data (pandas.DataFrame):
-            A withheld set of records that should be predicted by the models (test set).
+        dataset (DataCatalog):
+            Catalog containing a dataframe, set of train and test records, and the target.
         target (str):
             The target column in the dataset.
         initial_model (MLModelCatalog):
@@ -24,7 +24,7 @@ def disagreement_distance(data, target, initial_model, updated_model):
     Returns:
         float: Probability that the two classifiers disagree on the label of a sample.
     """
-
+    data = dataset._df
     # Check how the initial model would assign labels to the test set
     initial_pred = np.argmax(initial_model.predict_proba(data.loc[:, data.columns != target]), axis=1)
 
@@ -92,8 +92,8 @@ def model_MMD(dataset, model, initial_proba, calculate_p):
             Classifier with additional utilities required by CARLA.
         initial_proba (numpy.ndarray):
             Probabilities assigned by the model to a set of samples.
-        calculate_p (Boolean):
-            If True, the statistical significance is calculated for the MMD of the model.
+        calculate_p (int):
+            If not None, number of permutations to calculate the statistical significance.
 
     Returns:
         dict: A dictionary with an estimate of current MMD and p-value for that estimate.
@@ -105,8 +105,7 @@ def model_MMD(dataset, model, initial_proba, calculate_p):
     result = {'value': mmd}
 
     if calculate_p:
-        iterations = 1000
-        mmd_null = MMD_null_hypothesis(initial_proba, updated_proba, iterations)
-        result['p'] = max(1 / iterations, np.count_nonzero(mmd_null >= mmd) / iterations)
+        mmd_null = MMD_null_hypothesis(initial_proba, updated_proba, calculate_p)
+        result['p'] = max(1 / calculate_p, np.count_nonzero(mmd_null >= mmd) / calculate_p)
 
     return result

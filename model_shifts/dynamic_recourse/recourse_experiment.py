@@ -25,6 +25,8 @@ class RecourseExperiment():
             Predicted probabilities assigned to samples before the implementation of recourse.
         generators (List[RecourseGenerator]):
             List of one or more generators which will be measured in the experiment.
+        hyper_params (dict):
+            Dictionary of hyper-parameters provided to the models.
         initial_samples (dict of numpy.ndarray):
             Samples from the positive and negative class before the implementation of recourse.
         experiment_data (dict):
@@ -32,7 +34,7 @@ class RecourseExperiment():
         benchmarks (List[Benchmark]):
             List of one or more Benchmark objects used to track the dynamics of the generators.
     """
-    def __init__(self, dataset, model, generators, experiment_name='experiment'):
+    def __init__(self, dataset, model, generators, experiment_name='experiment', hyper_params={}):
         assert len(generators) != 0
 
         # Experiment data is saved into a new directory
@@ -46,6 +48,7 @@ class RecourseExperiment():
         self.initial_proba = model.predict_proba(dataset._df.loc[:, dataset._df.columns != dataset.target])
 
         self.generators = generators
+        self.hyper_params = hyper_params
 
         # Sample the initial classes for the calculations of MMD
         pos_individuals = dataset.df_train.loc[dataset.df_train[dataset.target] == dataset.positive]
@@ -63,7 +66,7 @@ class RecourseExperiment():
             self.experiment_data[g.name] = {0: {}}
             self.benchmarks[g.name] = DynamicBenchmark(model, g, g.recourse_method)
 
-    def run(self, epochs=0.8, recourse_per_epoch=0.05, calculate_p=False):
+    def run(self, epochs=0.8, recourse_per_epoch=0.05, calculate_p=None):
         """
         Driver code to execute an experiment that allows to compare the dynamics of recourse
         applied by some generator to a benchmark described by Wachter et al. (2017).
@@ -97,7 +100,7 @@ class RecourseExperiment():
                                           self.initial_samples, self.initial_proba, calculate_p)
 
         # Apply recourse over the specified number of epochs
-        for epoch in range(epochs - 1):
+        for epoch in range(epochs):
             log.info(f"Starting epoch {epoch + 1}")
 
             current_neg_instances = self.initial_dataset.index.to_list()
@@ -110,14 +113,15 @@ class RecourseExperiment():
             if len(current_factuals_index) == 0:
                 break
 
+            p = calculate_p if (epoch + 1) == epochs else None
+
             # Apply the same set of actions on all generators passed to the experiment
             for g in self.generators:
                 self.benchmarks[g.name].next_iteration(self.experiment_data, path,
                                                        current_factuals_index,
                                                        self.initial_model,
                                                        self.initial_samples,
-                                                       self.initial_proba,
-                                                       calculate_p)
+                                                       self.initial_proba, p)
 
         # Measure the quality of recourse using CARLA tools
         self.experiment_data['evaluation'] = {}
@@ -133,6 +137,7 @@ class RecourseExperiment():
             self.experiment_data['evaluation'][g.name] = {
                 'success_rate': success_rate,
                 'avg_time_per_ce': average_time,
+                'avg_classification_probability': str(benchmark._positive_class_proba.mean()),
                 'avg_redundancy': benchmark.compute_redundancy().mean(axis=0).iloc[0],
                 'avg_ynn_of_counterfactual': benchmark.compute_ynn().mean(axis=0).iloc[0],
                 'avg_constraint_violation': benchmark.compute_constraint_violation().mean(axis=0).iloc[0],

@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
 
 
+# TODO: Reconsider if this should be calculated on full dataset or only the test set
 def measure_performance(dataset, model):
     """
     Computes a set of performance metrics for a classifier.

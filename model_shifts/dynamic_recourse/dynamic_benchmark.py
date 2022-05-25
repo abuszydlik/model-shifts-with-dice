@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import timeit
 
@@ -38,6 +39,7 @@ class DynamicBenchmark(Benchmark):
         self._counterfactuals = None
         self._epoch = 0
         self._timer = 0
+        self._positive_class_proba = None
 
         # Avoid using scaling and normalizing more than once
         if isinstance(mlmodel, MLModelCatalog):
@@ -73,6 +75,7 @@ class DynamicBenchmark(Benchmark):
 
         # Due to some bug in CARLA a model needs to be retrained once before experiment begins
         self._generator.update_model()
+        self._generator.update_generator()
 
     def next_iteration(self, experiment_data, path, current_factuals_index,
                        initial_model, initial_samples, initial_proba, calculate_p):
@@ -115,9 +118,19 @@ class DynamicBenchmark(Benchmark):
             self._counterfactuals = pd.concat([self._counterfactuals, counterfactuals], axis=0)
 
         self._timer += timeit.default_timer() - start_time
-        if counterfactuals is not None:
-            self._generator.num_found += len(counterfactuals.index)
-        self._generator.update_model()
+
+        # Store the probabilities assigned by the model to counterfactuals
+        if counterfactuals is not None and self._positive_class_proba is None:
+            self._positive_class_proba = self._generator.model.predict_proba(
+                counterfactuals.loc[:, counterfactuals.columns != self._generator.dataset.target]
+                )[:, 1]
+        elif counterfactuals is not None and self._positive_class_proba is not None:
+            self._positive_class_proba = np.r_[
+                self._positive_class_proba,
+                self._generator.model.predict_proba(
+                    counterfactuals.loc[:, counterfactuals.columns != self._generator.dataset.target]
+                )[:, 1]
+                ]
 
         # Measure the data distribution and performance of the model
         experiment_data[self._generator.name][self._epoch + 1] = measure(self._generator,
@@ -129,6 +142,9 @@ class DynamicBenchmark(Benchmark):
         # Plot data distributions
         plot_distribution(self._generator.dataset, self._generator.model, path,
                           self._generator.name, 'distribution', self._epoch + 1)
+
+        # Retrain the model on the updated dataset
+        self._generator.update_model()
 
         # Re-create the generator on new model
         self._generator.update_generator()
