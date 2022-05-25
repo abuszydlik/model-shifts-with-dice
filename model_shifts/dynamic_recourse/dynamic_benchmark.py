@@ -45,8 +45,7 @@ class DynamicBenchmark(Benchmark):
         if isinstance(mlmodel, MLModelCatalog):
             self._mlmodel.use_pipeline = False
 
-    def start(self, experiment_data, path, initial_model, initial_samples,
-              initial_proba, calculate_p):
+    def start(self, experiment_data, path, initial_measurements, calculate_p):
         """Executes the initial steps (epoch 0) of the experiment.
 
         Args:
@@ -54,19 +53,11 @@ class DynamicBenchmark(Benchmark):
                 Dictionary storing all data related to the experiment.
             path (str):
                 Name of the directory where images are saved.
-            initial_model (MLModelCatalog):
-                Copy of the classifier before the implementation of recourse.
-            initial_samples (dict of numpy.ndarray):
-                Samples from the positive and negative class before the implementation of recourse.
-            initial_proba (numpy.ndarray):
-                Predicted probabilities assigned to samples before the implementation of recourse.
             calculate_p (Boolean):
                 If True, the statistical significance is calculated for MMD of distribution and model.
         """
         experiment_data[self._generator.name][0] = measure(self._generator,
-                                                           initial_model,
-                                                           initial_samples,
-                                                           initial_proba,
+                                                           initial_measurements,
                                                            calculate_p)
 
         # Plot initial data distributions
@@ -78,7 +69,7 @@ class DynamicBenchmark(Benchmark):
         self._generator.update_generator()
 
     def next_iteration(self, experiment_data, path, current_factuals_index,
-                       initial_model, initial_samples, initial_proba, calculate_p):
+                       initial_measurements, calculate_p):
         """
         Executes an iteration of the experiment that consists of the generation of recourse,
         measurement of shifts, and update of the underlying model.
@@ -90,12 +81,6 @@ class DynamicBenchmark(Benchmark):
                 Name of the directory where images are saved.
             current_factuals_index (list of int):
                 Indexes of the counterfactuals which should be treated by all generators in this iteration.
-            initial_model (MLModelCatalog):
-                Copy of the classifier before the implementation of recourse.
-            initial_samples (dict of numpy.ndarray):
-                Samples from the positive and negative class before the implementation of recourse.
-            initial_proba (numpy.ndarray):
-                Predicted probabilities assigned to samples before the implementation of recourse.
             calculate_p (Boolean):
                 If True, the statistical significance is calculated for MMD of distribution and model.
         """
@@ -134,9 +119,7 @@ class DynamicBenchmark(Benchmark):
 
         # Measure the data distribution and performance of the model
         experiment_data[self._generator.name][self._epoch + 1] = measure(self._generator,
-                                                                         initial_model,
-                                                                         initial_samples,
-                                                                         initial_proba,
+                                                                         initial_measurements,
                                                                          calculate_p)
 
         # Plot data distributions

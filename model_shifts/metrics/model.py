@@ -81,7 +81,7 @@ def decisiveness(dataset, model):
     }
 
 
-def model_MMD(dataset, model, initial_proba, calculate_p):
+def sample_MMD(dataset, model, initial_proba, calculate_p):
     """Calculates the MMD on the probabilities of classification assigned by the model
     to the set of (all)  instances. Allows to quantify the model shift.
 
@@ -101,6 +101,21 @@ def model_MMD(dataset, model, initial_proba, calculate_p):
     sample = np.random.randint(2, size=min(len(initial_proba), 10000)).astype('bool')
     updated_proba = model.predict_proba(dataset._df.loc[:, dataset._df.columns != dataset.target])
     mmd = MMD(initial_proba[sample], updated_proba[sample])
+
+    result = {'value': mmd}
+
+    if calculate_p:
+        mmd_null = MMD_null_hypothesis(initial_proba, updated_proba, calculate_p)
+        result['p'] = max(1 / calculate_p, np.count_nonzero(mmd_null >= mmd) / calculate_p)
+
+    return result
+
+
+def model_MMD(grid, initial_model, updated_model, calculate_p):
+    initial_proba = initial_model.predict_proba(grid)[:, 1].flatten().reshape((-1, 1))
+    updated_proba = updated_model.predict_proba(grid)[:, 1].flatten().reshape((-1, 1))
+
+    mmd = MMD(initial_proba, updated_proba)
 
     result = {'value': mmd}
 

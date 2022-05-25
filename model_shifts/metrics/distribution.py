@@ -95,7 +95,7 @@ def class_MMD(data, target, initial_sample, cls, calculate_p):
     return result
 
 
-def test_MMD(dataset, initial_samples, calculate_p):
+def distribution_MMD(dataset, initial_samples, calculate_p):
     """
     Measure the MMD between the initial distribution and the current distribution for both classes.
 

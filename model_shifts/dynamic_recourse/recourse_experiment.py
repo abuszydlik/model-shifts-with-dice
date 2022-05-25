@@ -7,6 +7,7 @@ from carla import log
 from carla.models.negative_instances import predict_negative_instances
 from copy import deepcopy
 from .dynamic_benchmark import DynamicBenchmark
+from ..plotting.plot_dataset import calculate_boundary
 from datetime import datetime
 
 
@@ -43,19 +44,27 @@ class RecourseExperiment():
         os.makedirs(f'../experiment_data/{self.experiment_name}')
 
         # Store the initial dataset and model used as baseline for the calculation of dynamics
-        self.initial_dataset = deepcopy(dataset._df)
-        self.initial_model = deepcopy(model)
-        self.initial_proba = model.predict_proba(dataset._df.loc[:, dataset._df.columns != dataset.target])
-
-        self.generators = generators
-        self.hyper_params = hyper_params
+        grid, _ = calculate_boundary(dataset._df, model, resolution=0.1, plot=False)
 
         # Sample the initial classes for the calculations of MMD
         pos_individuals = dataset.df_train.loc[dataset.df_train[dataset.target] == dataset.positive]
-        pos_sample = pos_individuals.sample(n=min(len(pos_individuals), 200)).to_numpy()
+        pos_sample = pos_individuals.sample(n=min(len(pos_individuals), 1000)).to_numpy()
         neg_individuals = dataset.df_train.loc[dataset.df_train[dataset.target] == dataset.negative]
-        neg_sample = neg_individuals.sample(n=min(len(neg_individuals), 200)).to_numpy()
-        self.initial_samples = {'positive': pos_sample, 'negative': neg_sample}
+        neg_sample = neg_individuals.sample(n=min(len(neg_individuals), 1000)).to_numpy()
+
+        self.initial_measurements = {
+            'dataset': deepcopy(dataset._df),
+            'model': deepcopy(model),
+            'grid': grid,
+            'proba': model.predict_proba(dataset._df.loc[:, dataset._df.columns != dataset.target]),
+            'samples': {
+                'positive': pos_sample,
+                'negative': neg_sample
+            }
+        }
+
+        self.generators = generators
+        self.hyper_params = hyper_params
 
         # Initialize the object storing all data about the experiment
         self.experiment_data = {}
@@ -96,14 +105,13 @@ class RecourseExperiment():
 
         # Execute the initial measurements for all generators
         for g in self.generators:
-            self.benchmarks[g.name].start(self.experiment_data, path, self.initial_model,
-                                          self.initial_samples, self.initial_proba, calculate_p)
+            self.benchmarks[g.name].start(self.experiment_data, path, self.initial_measurements, calculate_p)
 
         # Apply recourse over the specified number of epochs
         for epoch in range(epochs):
             log.info(f"Starting epoch {epoch + 1}")
 
-            current_neg_instances = self.initial_dataset.index.to_list()
+            current_neg_instances = self.initial_measurements['dataset'].index.to_list()
             for g in self.generators:
                 generator_factuals = predict_negative_instances(g.model, g.dataset.df_train).index.to_list()
                 current_neg_instances = [f for f in current_neg_instances if f in generator_factuals]
@@ -119,9 +127,7 @@ class RecourseExperiment():
             for g in self.generators:
                 self.benchmarks[g.name].next_iteration(self.experiment_data, path,
                                                        current_factuals_index,
-                                                       self.initial_model,
-                                                       self.initial_samples,
-                                                       self.initial_proba, p)
+                                                       self.initial_measurements, p)
 
         # Measure the quality of recourse using CARLA tools
         self.experiment_data['evaluation'] = {}
@@ -157,7 +163,7 @@ class RecourseExperiment():
         """
         path = path or f'../experiment_data/{self.experiment_name}/measurements.json'
         with open(path, 'w') as outfile:
-            json.dump(self.experiment_data, outfile, sort_keys=True, indent=4)
+            json.dump(self.experiment_data, outfile, sort_keys=True, indent=3)
 
     def describe(self):
         """

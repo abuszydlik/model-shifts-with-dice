@@ -65,7 +65,7 @@ def plot_distribution(dataset, model, output_directory, generator_name,
     plt.close()
 
 
-def calculate_boundary(data, model, resolution=0.01):
+def calculate_boundary(data, model, resolution=0.01, plot=True):
     """
     Calculates the 2D decision boundary for a contour plot.
 
@@ -84,12 +84,18 @@ def calculate_boundary(data, model, resolution=0.01):
     x_min = np.min(data[:, :], axis=0) - 1
     x_max = np.max(data[:, :], axis=0) + 1
 
-    x0, x1 = np.meshgrid(np.arange(x_min[0], x_max[0], resolution),
-                         np.arange(x_min[1], x_max[1], resolution))
+    ranges = [np.arange(x_min[index], x_max[index], resolution) for index in range((data.shape[1] - 1))]
+    grid = np.meshgrid(*ranges)
 
-    x_new = np.c_[x0.flatten().reshape((-1, 1)),
-                  x1.flatten().reshape((-1, 1))]
+    x_new = grid[0].flatten().reshape((-1, 1))
+    for i in range(1, len(grid)):
+        x_new = np.c_[x_new, grid[i].flatten().reshape((-1, 1))]
 
     y_new = model.predict_proba(x_new)[:, 1]
-    z = y_new.reshape(x0.shape)
-    return x0, x1, z
+
+    if plot:
+        z = y_new.reshape(grid[0].shape)
+        return grid[0], grid[1], z
+    else:
+        z = y_new.flatten().reshape((-1, 1))
+        return x_new, z
