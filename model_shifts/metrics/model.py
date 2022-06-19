@@ -25,10 +25,10 @@ def disagreement_distance(dataset, target, initial_model, updated_model):
         float: Probability that the two classifiers disagree on the label of a sample.
     """
     data = dataset._df
-    # Check how the initial model would assign labels to the test set
+    # Check how the initial model would assign labels to the dataset
     initial_pred = np.argmax(initial_model.predict_proba(data.loc[:, data.columns != target]), axis=1)
 
-    # Check how the updated model would assign labels to the test set
+    # Check how the updated model would assign labels to the dataset
     updated_pred = np.argmax(updated_model.predict_proba(data.loc[:, data.columns != target]), axis=1)
 
     count_mismatch = 0

@@ -34,6 +34,8 @@ def measure(generator, initial_data, calculate_p):
     # Measure the MMD of the distribution and the model
     results['MMD'] = distribution_MMD(generator.dataset, initial_data['samples'], calculate_p)
     results['sample_MMD'] = sample_MMD(generator.dataset, generator.model, initial_data['proba'], calculate_p)
-    results['model_MMD'] = model_MMD(initial_data['grid'], initial_data['model'], generator.model, calculate_p)
+
+    if generator.dataset._df.to_numpy().shape[1] <= 3:
+        results['model_MMD'] = model_MMD(initial_data['grid'], initial_data['model'], generator.model, calculate_p)
 
     return results

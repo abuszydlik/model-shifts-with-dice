@@ -121,6 +121,7 @@ class RecourseGenerator():
             counterfactual = recourse_controller(recourse_worker, self.timeout, self.generator, f)
             # We only want to overwrite the existing data if counterfactual generation was successful
             if counterfactual is not None and not counterfactual.empty:
+                # Reset to the correct index
                 counterfactual.rename(index={counterfactual.index[0]: f.index[0]}, inplace=True)
                 if found_counterfactuals is None:
                     found_counterfactuals = counterfactual
@@ -139,7 +140,7 @@ class RecourseGenerator():
         self.model.data._df_test.update(self.dataset._df)
 
         log.info(f'Updating the {self.name} model')
-        self.model = train_model(self.dataset, self.model_params, retrain=True)
+        self.model = train_model(self.dataset, self.model_params, self.model.model_type, retrain=True)
 
     def describe(self):
         """
@@ -202,7 +203,7 @@ def recourse_controller(function, max_wait_time, generator, factual):
     return None
 
 
-def train_model(dataset, hyper_params, model_type='ann', retrain=False):
+def train_model(dataset, hyper_params, model_type, retrain=False):
     """
     Instantiates and trains a black-box model within a CARLA wrapper that will be used to generate explanations.
 
@@ -219,7 +220,9 @@ def train_model(dataset, hyper_params, model_type='ann', retrain=False):
     Returns:
         MLModelCatalog: Classifier with additional utilities required by CARLA.
     """
-    kwargs = {'save_name_params': "_".join([str(size) for size in hyper_params['hidden_size']])}
+    kwargs = {}
+    if model_type == 'ann':
+        kwargs = {'save_name_params': "_".join([str(size) for size in hyper_params['hidden_size']])}
     model = DynamicMLModelCatalog(dataset, model_type=model_type,
                                   load_online=False, backend="pytorch", **kwargs)
 

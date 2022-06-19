@@ -84,7 +84,7 @@ def class_MMD(data, target, initial_sample, cls, calculate_p):
         dict: A dictionary containing the current value of MMD and, optionally, its statistical significance.
     """
     cls_individuals = data.loc[data[target] == cls]
-    cls_sample = cls_individuals.sample(n=min(len(cls_individuals), 200)).to_numpy()
+    cls_sample = cls_individuals.sample(n=min(len(cls_individuals), 10000)).to_numpy()
     mmd = MMD(initial_sample, cls_sample)
     result = {'value': mmd}
 
@@ -118,7 +118,7 @@ def distribution_MMD(dataset, initial_samples, calculate_p):
     }
 
 
-def k_means(data, min_clusters=1, max_clusters=5):
+def k_means(data, min_clusters=1, max_clusters=10):
     """
     Applies the k-means algorithm and automatically estimates the elbow point.
     The algorithm used to calculate the elbow point is described in 10.1109/ICDCSW.2011.20
@@ -146,10 +146,12 @@ def k_means(data, min_clusters=1, max_clusters=5):
     # if the counterfactual instances form their own cluster(s), the value returned by this method should change.
     kneedle = KneeLocator(clusters, scores, curve="convex", direction="decreasing")
 
-    return {
-        'inertias': scores,
-        'estimated_elbow': int(kneedle.elbow)
-    }
+    result = {'inertias': scores}
+
+    if kneedle.elbow is not None:
+        result['elbow'] = int(kneedle.elbow)
+
+    return result
 
 
 def class_statistics(dataset, aggregate):

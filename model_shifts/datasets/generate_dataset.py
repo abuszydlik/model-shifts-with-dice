@@ -42,14 +42,17 @@ def generate_continuous_dataset(means0, covs0, sizes0, means1, covs1, sizes1, fi
     # Append labels to the classes
     class0 = np.c_[samples0, np.zeros(len(samples0), dtype=np.int8)]
     class1 = np.c_[samples1, np.ones(len(samples1), dtype=np.int8)]
-    colors = np.array(['#1f77b4', '#ff7f0e'])
+    colors = np.array(['cornflowerblue', 'darkorange'])
 
     # Construct the dataset
     dataset = np.r_[class0, class1]
 
     # Plot the resulting distribution only if it contains two features + target
     if dataset.shape[1] == 3:
-        plt.scatter(dataset[:, 0], dataset[:, 1], c=colors[dataset[:, 2].astype(int)])
+        plt.xlabel('$feature1$')
+        plt.ylabel('$feature2$')
+        plt.scatter(dataset[:, 0], dataset[:, 1], s=50, edgecolors='black',
+                    linewidths=0.6, c=colors[dataset[:, 2].astype(int)])
         plt.axis('equal')
         plt.grid(True)
         plt.show()
@@ -119,14 +122,15 @@ def generate_categorical_dataset(size0, ranges0, size1, ranges1, file_name="data
     # Append labels to the classes
     class0 = np.c_[samples0, np.zeros(len(samples0), dtype=np.int)]
     class1 = np.c_[samples1, np.ones(len(samples1), dtype=np.int)]
-    colors = np.array(['#1f77b4', '#ff7f0e'])
+    colors = np.array(['cornflowerblue', 'darkorange'])
 
     # Construct the dataset
     dataset = np.r_[class0, class1]
 
     # Plot the resulting distribution
     if dataset.shape[1] == 3:
-        plt.scatter(dataset[:, 0], dataset[:, 1], c=colors[dataset[:, 2].astype(int)])
+        plt.scatter(dataset[:, 0], dataset[:, 1], s=50, edgecolors='black',
+                    linewidths=0.6, c=colors[dataset[:, 2].astype(int)])
         plt.axis('equal')
         plt.grid(True)
         plt.show()

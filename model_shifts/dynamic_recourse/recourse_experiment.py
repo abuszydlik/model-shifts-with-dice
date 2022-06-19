@@ -7,7 +7,9 @@ from carla import log
 from carla.models.negative_instances import predict_negative_instances
 from copy import deepcopy
 from .dynamic_benchmark import DynamicBenchmark
+from ..metrics.measurement import measure
 from ..plotting.plot_dataset import calculate_boundary
+from ..plotting.plot_tsne_boundary import plot_tsne_boundary
 from datetime import datetime
 
 
@@ -44,13 +46,15 @@ class RecourseExperiment():
         os.makedirs(f'../experiment_data/{self.experiment_name}')
 
         # Store the initial dataset and model used as baseline for the calculation of dynamics
-        grid, _ = calculate_boundary(dataset._df, model, resolution=0.1, plot=False)
+        grid = None
+        if dataset._df.to_numpy().shape[1] <= 3:
+            grid, _ = calculate_boundary(dataset._df, model, resolution=0.1, plot=False)
 
         # Sample the initial classes for the calculations of MMD
         pos_individuals = dataset.df_train.loc[dataset.df_train[dataset.target] == dataset.positive]
-        pos_sample = pos_individuals.sample(n=min(len(pos_individuals), 1000)).to_numpy()
+        pos_sample = pos_individuals.sample(n=min(len(pos_individuals), 10000)).to_numpy()
         neg_individuals = dataset.df_train.loc[dataset.df_train[dataset.target] == dataset.negative]
-        neg_sample = neg_individuals.sample(n=min(len(neg_individuals), 1000)).to_numpy()
+        neg_sample = neg_individuals.sample(n=min(len(neg_individuals), 10000)).to_numpy()
 
         self.initial_measurements = {
             'dataset': deepcopy(dataset._df),
@@ -74,6 +78,10 @@ class RecourseExperiment():
         for g in self.generators:
             self.experiment_data[g.name] = {0: {}}
             self.benchmarks[g.name] = DynamicBenchmark(model, g, g.recourse_method)
+
+        file_name = f'../experiment_data/{self.experiment_name}/initial_boundary_tsne.png'
+        title = f'Initial model on {dataset.name}'
+        self.bounds = plot_tsne_boundary(dataset._df, dataset._target, model, title, file_name)
 
     def run(self, epochs=0.8, recourse_per_epoch=0.05, calculate_p=None):
         """
@@ -111,20 +119,37 @@ class RecourseExperiment():
         for epoch in range(epochs):
             log.info(f"Starting epoch {epoch + 1}")
 
+            # Get all samples from the original dataset
             current_neg_instances = self.initial_measurements['dataset'].index.to_list()
             for g in self.generators:
+                # Leave in the list only those, which are predicted negative by all generators
                 generator_factuals = predict_negative_instances(g.model, g.dataset.df_train).index.to_list()
                 current_neg_instances = [f for f in current_neg_instances if f in generator_factuals]
             # Generate a subset S of factuals that have never been encountered by the generators
             sample_size = min(recourse_per_epoch, len(current_neg_instances))
             current_factuals_index = np.random.choice(current_neg_instances, replace=False, size=sample_size)
+            # For sanity we remove duplicates (there should be none but CARLA seems to be buggy)
+            current_factuals_index = np.unique(current_factuals_index)
+
             if len(current_factuals_index) == 0:
+                log.info("No common negative instances found")
+                for g in self.generators:
+                    self.experiment_data[g.name][epoch + 1] = measure(g, self.initial_measurements, calculate_p)
+                    # Plot the final decision boundary
+                    file_name = f'../experiment_data/{self.experiment_name}/{g.name}_boundary_tsne.png'
+                    title = f'{g.name} model on {g.dataset.name}. Round {epoch + 1}.'
+                    plot_tsne_boundary(g.dataset._df, g.dataset._target, g.model, title, file_name, self.bounds)
                 break
 
             p = calculate_p if (epoch + 1) == epochs else None
 
             # Apply the same set of actions on all generators passed to the experiment
             for g in self.generators:
+                if (epoch + 1) % 2 == 0:
+                    file_name = f'../experiment_data/{self.experiment_name}/{g.name}_boundary_{epoch + 1}_tsne.png'
+                    title = f'{g.name} model on {g.dataset.name}. Round {epoch + 1}.'
+                    plot_tsne_boundary(g.dataset._df, g.dataset._target, g.model, title, file_name, self.bounds)
+
                 self.benchmarks[g.name].next_iteration(self.experiment_data, path,
                                                        current_factuals_index,
                                                        self.initial_measurements, p)
@@ -132,26 +157,43 @@ class RecourseExperiment():
         # Measure the quality of recourse using CARLA tools
         self.experiment_data['evaluation'] = {}
         for g in self.generators:
+
+            # Plot the final decision boundary
+            file_name = f'../experiment_data/{self.experiment_name}/{g.name}_boundary_tsne.png'
+            title = f'{g.name} model on {g.dataset.name}. Round {epoch + 1}.'
+            plot_tsne_boundary(g.dataset._df, g.dataset._target, g.model, title, file_name, self.bounds)
+
             benchmark = self.benchmarks[g.name]
+            results = self.experiment_data['evaluation'][g.name] = {}
+
+            if benchmark._counterfactuals is None:
+                results['success_rate'] = 0.0
+                continue
+
             found_counterfactuals = benchmark._counterfactuals.index
             success_rate = len(found_counterfactuals) / len(benchmark._factuals)
             average_time = benchmark._timer / len(found_counterfactuals)
 
-            benchmark._factuals = benchmark._factuals.loc[found_counterfactuals]
-            distances = benchmark.compute_distances().mean(axis=0)
+            results['success_rate'] = success_rate
+            results['avg_time_per_ce'] = average_time
 
-            self.experiment_data['evaluation'][g.name] = {
-                'success_rate': success_rate,
-                'avg_time_per_ce': average_time,
-                'avg_classification_probability': str(benchmark._positive_class_proba.mean()),
-                'avg_redundancy': benchmark.compute_redundancy().mean(axis=0).iloc[0],
-                'avg_ynn_of_counterfactual': benchmark.compute_ynn().mean(axis=0).iloc[0],
-                'avg_constraint_violation': benchmark.compute_constraint_violation().mean(axis=0).iloc[0],
-                'avg_changes_applied': distances.iloc[0],
-                'avg_taxicab_distance': distances.iloc[1],
-                'avg_euclidean_distance': np.sqrt(distances.iloc[2]),
-                'avg_max_change_size': distances.iloc[3]
-            }
+            benchmark._factuals = benchmark._factuals[benchmark._factuals.index.isin(found_counterfactuals)]
+            log.info(f"Factuals: {benchmark._factuals.shape}, counterfactuals: {benchmark._counterfactuals.shape}")
+
+            if benchmark._factuals.shape[0] == benchmark._counterfactuals.shape[0]:
+                results['avg_classification_probability'] = float(benchmark._positive_class_proba.mean())
+                results['avg_redundancy'] = benchmark.compute_redundancy().mean(axis=0).iloc[0]
+                results['avg_ynn_of_counterfactual'] = benchmark.compute_ynn().mean(axis=0).iloc[0]
+                results['avg_constraint_violation'] = benchmark.compute_constraint_violation().mean(axis=0).iloc[0]
+
+                distances = benchmark.compute_distances().mean(axis=0)
+                results['avg_changes_applied'] = distances.iloc[0]
+                results['avg_taxicab_distance'] = distances.iloc[1]
+                results['avg_euclidean_distance'] = np.sqrt(distances.iloc[2])
+                results['avg_max_change_size'] = distances.iloc[3]
+
+            # file_name = f'../experiment_data/{self.experiment_name}/{g.name}_dataset.csv'
+            # g.dataset._df.to_csv(file_name, index=False, float_format='%1.4f')
 
     def save_data(self, path=None):
         """

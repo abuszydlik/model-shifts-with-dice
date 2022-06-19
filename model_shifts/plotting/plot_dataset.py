@@ -81,6 +81,7 @@ def calculate_boundary(data, model, resolution=0.01, plot=True):
         tuple of (numpy.ndarray, numpy.ndarray, numpy.ndarray): Meshgrid and predicted probabilities.
     """
     data = data.to_numpy()
+
     x_min = np.min(data[:, :], axis=0) - 1
     x_max = np.max(data[:, :], axis=0) + 1
 

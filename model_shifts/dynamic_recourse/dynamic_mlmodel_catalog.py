@@ -21,7 +21,7 @@ class DynamicMLModelCatalog(MLModelCatalog):
             Name of the file with the model.
     """
     def __init__(self, data: DataCatalog, model_type: str, backend: str = "pytorch",
-                 load_online: bool = True, **kwargs) -> None:
+                 load_online: bool = False, **kwargs) -> None:
 
         if backend != 'pytorch':
             raise NotImplementedError("Only PyTorch models are currently supported")
@@ -30,9 +30,8 @@ class DynamicMLModelCatalog(MLModelCatalog):
             raise NotImplementedError(f"Model type not supported: {self.model_type}")
 
         save_name = model_type
-        if model_type == "ann":
+        if model_type == 'ann':
             save_name += f"_layers_{kwargs['save_name_params']}"
-
         self._save_name = save_name
 
         super().__init__(data=data, model_type=model_type, backend=backend,

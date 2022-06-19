@@ -56,7 +56,7 @@ class DynamicCsvCatalog(DataCatalog):
     def __init__(self, file_path: str, categorical: List[str],  continuous: List[str],
                  immutables: List[str], target: str, test_size: float = 0.5,
                  scaling_method: str = "MinMax", encoding_method: str = "OneHot_drop_binary",
-                 positive: int = 1, negative: int = 0):
+                 positive: int = 1, negative: int = 0, name='custom'):
 
         self._categorical = categorical
         self._continuous = continuous
@@ -64,7 +64,7 @@ class DynamicCsvCatalog(DataCatalog):
         self._target = target
         self._positive = positive
         self._negative = negative
-        self.name = "custom"
+        self.name = name
 
         # Load the raw data
         raw = pd.read_csv(file_path)
